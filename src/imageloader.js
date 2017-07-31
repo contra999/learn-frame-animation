@@ -18,9 +18,9 @@ function loadImage(iamges, callback, timeout) {
     var isTimeout = false;
 
     // 对图片数组（或对象）进行遍历
-    for(var key in images) {
+    for (var key in images) {
         // 过滤prototype上的属性
-        if(!images.hasOwnProperty(key)) {
+        if (!images.hasOwnProperty(key)) {
             continue;
         }
         // 获得每个图片元素
@@ -42,11 +42,76 @@ function loadImage(iamges, callback, timeout) {
         count++;
         // 设置图片元素的id
         item.id = '__img__' + key + getId();
+        // 设置图片元素的img，它是一个Image对象
+        item.img = window[item.id] = new Image();
+
+        doLoad(item);
+    }
+
+    // 遍历完成如果计数为0，则直接调用callback
+    if (!count) {
+        callback(success);
+    } else if (tiemout) {
+        timeoutId = setTimeout(onTimeout, timeout);
+    }
+
+    /**
+     * 真正进行图片加载的函数
+     * @param item 图片元素对象
+     */
+    function doLoad(item) {
+        item.status = 'loading';
+
+        var img = item.img;
+        // 定义函数图片加载成功的回调函数
+        img.onload = function () {
+            success = success & true;
+            item.status = 'loaded';
+            done();
+        };
+        // 定义图片加载失败的回调函数
+        img.onerror = function () {
+            success = false;
+            item.status = 'error';
+            done();
+        };
+
+        // 发起了一个http(s)的请求
+        img.src = item.src;
+
+        /**
+         * 每张图片加载完成的回调函数
+         */
+        function done() {
+            img.onload = img.onerror = null;
+
+            // try catch 避免低版本的IE报错影响后续执行
+            try {
+                delete window[item.id];
+            } catch (e) {
+
+            }
+
+            // 每张图片加载完成，计数器减一，当所有图片加载完成且没有超时的情况
+            // 清除超时定时器，且执行回调函数
+            if (!--count && !isTimeout) {
+                clearTimeout(timeoutId);
+                calllback(success);
+            }
+        };
+    }
+
+    /**
+     * 超时函数
+     */
+    function onTimeout() {
+        isTimeout = true;
+        callback(false);
     }
 }
 
 var __id = 0;
-function getId () {
+function getId() {
     return ++__id;
 }
 
